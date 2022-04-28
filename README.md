@@ -23,7 +23,7 @@ So Weather Manager provides, or will later provide:
 - A weather dashboard with tables, graphs and aggregates from the current data. This may be a desktop app, a 
   website or both. 
 
-##WUMDataDownloader
+##WMDownloader
 
 This repository holds the function to download your WU data and store it in a database. It's probably something that 
 you'll set up to run daily though it will go back and catch up on any data that it has missed. 

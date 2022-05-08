@@ -41,7 +41,7 @@ CREATE TABLE Observations(
 	HeatIndexMean DECIMAL(3,1) UNSIGNED NOT NULL,
 	PressureHigh DECIMAL(6,2) UNSIGNED NOT NULL,
 	PressureLow DECIMAL(6,2) UNSIGNED NOT NULL,
-	PressureTrend DECIMAL(4,2) NOT NULL,observations
+	PressureTrend DECIMAL(4,2) NOT NULL,
 	PrecipitationRate DECIMAL(5,2) UNSIGNED NOT NULL,
 	PrecipitationTotal DECIMAL(5,2) UNSIGNED NOT NULL
 )

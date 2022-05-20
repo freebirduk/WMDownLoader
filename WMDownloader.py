@@ -1,10 +1,15 @@
 # Main logic for importing Weather Underground PWS data and adding it to the Weather Manager database.
 # Will import all observations not yet downloaded up until yesterday's date.
 
+import configparser
+
+
 class MainRoutine:
 
+    config = configparser.ConfigParser()
+
     def __init__(self):
-        pass
+        self.config.read('config.ini')
 
     def download_recent_observations(self):
 

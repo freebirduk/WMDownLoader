@@ -1,7 +1,8 @@
+import configparser
 import datetime
+import unittest
 from unittest import TestCase
 from WMDatabaseService import WMDatabaseService
-import configparser
 
 
 class TestWMDatabaseService(TestCase):
@@ -19,3 +20,7 @@ class TestWMDatabaseService(TestCase):
     def test_get_most_recent_observation_date(self):
         result = self.service.get_most_recent_observation_date()
         self.assertEqual(result, datetime.datetime(2022, 6, 6, 22, 9, 57))
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -23,14 +23,13 @@ class WMDatabaseService(IWMDatabaseService):
         session = sqlalchemy.orm.sessionmaker()
         session.configure(bind=self.engine)
         session = session()
-        temp = session.query(self.observations).all()
         result = session.query(func.max(self.observations.ObservationTime)).scalar()
         session.close()
 
         if result is None:
             return None
         else:
-            return result.observations.observationtime
+            return result
 
     def get_latest_observations(self):
 

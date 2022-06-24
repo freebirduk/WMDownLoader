@@ -27,12 +27,12 @@
     "HeatIndexLow": 12.0,
     "HeatIndexMean": 12.0,
     "PressureHigh": 12.00,
-    "PressureLow": 12.00,
     "PressureTrend": 12.00,
+    "PressureLow": 12.00,
     "PrecipitationRate": 12.00,
     "PrecipitationTotal": 12.00
-  }
-    {
+  },
+  {
     "ObservationId": 2,
     "ObservationTime": "2022-06-04 22:09:57.0",
     "SolarRadiationHigh": 12.0,
@@ -64,8 +64,8 @@
     "PressureTrend": 12.00,
     "PrecipitationRate": 12.00,
     "PrecipitationTotal": 12.00
-  }
-    {
+  },
+  {
     "ObservationId": 3,
     "ObservationTime": "2022-05-06 22:09:57.0",
     "SolarRadiationHigh": 12.0,
@@ -97,8 +97,8 @@
     "PressureTrend": 12.00,
     "PrecipitationRate": 12.00,
     "PrecipitationTotal": 12.00
-  }
-    {
+  },
+  {
     "ObservationId": 4,
     "ObservationTime": "2022-06-06 22:09:57.0",
     "SolarRadiationHigh": 12.0,
@@ -130,8 +130,8 @@
     "PressureTrend": 12.00,
     "PrecipitationRate": 12.00,
     "PrecipitationTotal": 12.00
-  }
-    {
+  },
+  {
     "ObservationId": 5,
     "ObservationTime": "2022-06-02 22:09:57.0",
     "SolarRadiationHigh": 12.0,

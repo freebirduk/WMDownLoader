@@ -18,7 +18,12 @@ class WMDatabaseService(IWMDatabaseService):
         self.base.prepare(self.engine, reflect=True)
         self.observations = self.base.classes.observations
 
-    def get_most_recent_observation_date(self):
+    def dispose(self):
+        self.engine.dispose()
+
+    # Gets the date of the  most recent observation from the observations table.
+    # If there are no observations then the default observation date is returned.
+    def get_most_recent_observation_date(self, default_observation_date):
 
         session = sqlalchemy.orm.sessionmaker()
         session.configure(bind=self.engine)
@@ -27,7 +32,7 @@ class WMDatabaseService(IWMDatabaseService):
         session.close()
 
         if result is None:
-            return None
+            return default_observation_date
         else:
             return result
 

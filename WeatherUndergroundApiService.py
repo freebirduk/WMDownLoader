@@ -1,3 +1,4 @@
+from datetime import date
 from IWeatherUndergroundApiService import IWeatherUndergroundApiService
 import requests
 from requests.adapters import HTTPAdapter, Retry
@@ -15,12 +16,12 @@ class WeatherUndergroundApiService(IWeatherUndergroundApiService):
         self.__api_key = api_key
         self.__station_id = station_id
 
-    def get_hourly_observations_for_date(self, date):
+    def get_hourly_observations_for_date(self, date_required: date):
         # Configure the api call
         _api_url = "{}hourly?stationId={}&format=json&units=m&numericPrecision=decimal&date={}&apiKey={}"\
             .format(self.__weather_underground_url,
                     self.__station_id,
-                    date.strftime("%Y%m%d"),
+                    date_required.strftime("%Y%m%d"),
                     self.__api_key)
 
         _http_session = requests.session()

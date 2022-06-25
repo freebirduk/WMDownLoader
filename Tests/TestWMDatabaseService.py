@@ -1,7 +1,8 @@
 import configparser
-import datetime
 import os
 import unittest
+from datetime import datetime
+from datetime import date
 from unittest import TestCase
 from Tests.MaintainTestDatabase import MaintainTestDatabase
 from WMDatabaseService import WMDatabaseService
@@ -26,9 +27,12 @@ class TestWMDatabaseService(TestCase):
                                     self.config.get('Database', 'Password'),
                                     self.config.get('Database', 'DatabaseName'))
 
-        result = service.get_most_recent_observation_date(self.config.get('WeatherUnderground',
-                                                                          'InitialObservationDate'))
-        self.assertEqual(result, datetime.datetime(2022, 6, 6, 22, 9, 57))
+        _initial_observation_date = datetime.strptime(self.config.get('WeatherUnderground',
+                                                                      'InitialObservationDate'),
+                                                      '%Y-%m-%d')
+
+        result = service.get_most_recent_observation_date(_initial_observation_date.date())
+        self.assertEqual(result, date(2022, 6, 6))
 
         service.dispose()
 
@@ -44,9 +48,12 @@ class TestWMDatabaseService(TestCase):
                                     self.config.get('Database', 'Password'),
                                     self.config.get('Database', 'DatabaseName'))
 
-        result = service.get_most_recent_observation_date(self.config.get('WeatherUnderground',
-                                                                          'InitialObservationDate'))
-        self.assertEqual(result, self.config.get('WeatherUnderground', 'InitialObservationDate'))
+        _initial_observation_date = datetime.strptime(self.config.get('WeatherUnderground',
+                                                                      'InitialObservationDate'),
+                                                      '%Y-%m-%d')
+
+        result = service.get_most_recent_observation_date(_initial_observation_date.date())
+        self.assertEqual(result, _initial_observation_date.date())
 
         service.dispose()
 

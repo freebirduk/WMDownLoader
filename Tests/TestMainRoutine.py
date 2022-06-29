@@ -27,6 +27,6 @@ class TestMainRoutine(TestCase):
 
         main_routine = MainRoutine(_wm_database_service, _date_time_provider, _wu_api_service)
 
-        success = main_routine.download_recent_observations()
+        _success = main_routine.download_recent_observations()
 
-        self.assertTrue(success)
+        self.assertTrue(_success)

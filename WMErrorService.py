@@ -1,12 +1,15 @@
 import logging
 import smtplib
+import sys
 from email.mime.text import MIMEText
 from email.header import Header
 from email.utils import formataddr
-from IWMEmailService import IWMEmailService
+from IWMErrorService import IWMErrorService
 
 
-class WMEmailService(IWMEmailService):
+# Handles WMDownloader errors of whatever severity. Options to perform logging,
+# send e-mail alerts and terminate the program.
+class WMErrorService(IWMErrorService):
     host = None
     port = None
     username = None
@@ -26,7 +29,28 @@ class WMEmailService(IWMEmailService):
         self.to_address = to_address
         self.to_name = to_name
 
-    def send_email(self, message):
+    # Handles error logging, alert e-mail sending and program termination as necessary.
+    def handle_error(self,
+                     message: str,
+                     severity: str = 'Warning',
+                     send_email: bool = False,
+                     terminate: bool = False,
+                     exc_info=None):
+
+        if severity == "Warning":
+            logging.warning(message)
+        elif severity == "Error":
+            logging.error(message)
+        else:
+            logging.critical(message, exc_info=exc_info)
+
+        if send_email:
+            self._send_email(message)
+
+        if terminate:
+            sys.exit()
+
+    def _send_email(self, message):
         # Create message
         msg = MIMEText(message, 'plain', 'utf-8')
         msg['Subject'] = Header("WMDownloader alert", 'utf-8')

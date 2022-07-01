@@ -2,6 +2,7 @@ import requests
 from datetime import date
 from IWeatherUndergroundApiService import IWeatherUndergroundApiService
 from requests.adapters import HTTPAdapter, Retry
+from WuApiException import WuApiException
 
 
 # Service to handle retrieval of observations from the Weather Underground API.
@@ -33,8 +34,8 @@ class WeatherUndergroundApiService(IWeatherUndergroundApiService):
         if _api_response.status_code == requests.codes.ok:
             return _api_response.json()
         else:
-            raise Exception("Weather Underground API returned {} '{}'".format(_api_response.status_code,
-                                                                              _api_response.reason))
+            raise WuApiException("Weather Underground API returned {} '{}'".format(_api_response.status_code,
+                                                                                   _api_response.reason))
 
     # Prepares the Weather Underground API for querying
     def start_wu_api_session(self):
@@ -51,7 +52,7 @@ class WeatherUndergroundApiService(IWeatherUndergroundApiService):
     @staticmethod
     def __validate_constructor_parameters(station_id, api_key):
         if not station_id and not station_id.isspace():
-            raise Exception("Station Id not provided to Weather Underground API service")
+            raise WuApiException("Station Id not provided to Weather Underground API service")
 
         if not api_key or api_key.isspace():
-            raise Exception("API Key not provided to Weather Underground API service")
+            raise WuApiException("API Key not provided to Weather Underground API service")

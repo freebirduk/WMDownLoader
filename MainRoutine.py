@@ -2,27 +2,19 @@
 # Will import all observations not yet downloaded up until yesterday's date.
 
 import configparser
-import sys
-from os.path import exists
-
 import IDateTimeProvider
 import IWMDatabaseService
+import IWMErrorService
 import IWeatherUndergroundApiService
 import logging
 import os
+import sys
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from os.path import exists
 
-
-def _catch_unhandled_exceptions(exception_type, value, trace_back):
-
-    if issubclass(exception_type, KeyboardInterrupt):
-        sys.__excepthook__(exception_type, value, trace_back)
-        return
-
-    logging.critical("Unhandled exception", exc_info=(exception_type, value, trace_back))
-    sys.exit()
+import WuApiException
 
 
 def _configure_logging(log_file_full_name: str):
@@ -39,35 +31,38 @@ class MainRoutine:
     _config = configparser.ConfigParser()
     _database_service = None
     _date_time_provider = None
-    _wu_service: IWeatherUndergroundApiService = None
+    _wm_error_service = None
+    _wu_api_service: IWeatherUndergroundApiService = None
 
     def __init__(self,
                  wm_database_service: IWMDatabaseService,
                  date_time_provider: IDateTimeProvider,
-                 wu_api_service: IWeatherUndergroundApiService,
+                 _wu_api_service: IWeatherUndergroundApiService,
+                 _wm_error_service: IWMErrorService,
                  log_file_full_name):
 
         # Setup logging
         _configure_logging(log_file_full_name)
 
         # Assign function to log unhandled exceptions
-        sys.excepthook = _catch_unhandled_exceptions
+        sys.excepthook = self._catch_unhandled_exceptions
 
         # Load configuration
         self._config.read('config.ini')
         if self._config is None:
-            logging.error(f"Could not read the configuration file config.ini in {os.getcwd()}")
-            sys.exit()
+            self._wm_error_service.handle_error(f"Could not read the configuration file config.ini in {os.getcwd()}",
+                                                "Error", send_email=True, terminate=True)
 
         # Store the injected services
         self._database_service = wm_database_service
         self._date_time_provider = date_time_provider
-        self._wu_service = wu_api_service
+        self._wu_service = _wu_api_service
+        self._wm_error_service = _wm_error_service
 
     # The controlling method that is called to drive the download of recent observations
     def download_recent_observations(self):
 
-        # Weather Underground not recording today warner
+        self._not_currently_gathering_data_warner()
 
         _initial_observation_date = datetime.strptime(self._config.get('WeatherUnderground',
                                                                        'InitialObservationDate'),
@@ -97,7 +92,34 @@ class MainRoutine:
         else:
             return yesterdays_date
 
-    # Configures logging
+    def _catch_unhandled_exceptions(self, exception_type, value, trace_back):
+        if issubclass(exception_type, KeyboardInterrupt):
+            sys.__excepthook__(exception_type, value, trace_back)
+            return
+
+        self._wm_error_service.handle_error("Critical", "Unhandled exception",
+                                            exc_info=(exception_type, value, trace_back))
+        sys.exit()
+
+    # Alerts user to the fact that no data has been logged to Weather Underground today.
+    # Weather station may be offline for some reason.
+    def _not_currently_gathering_data_warner(self):
+
+        try:
+
+            self._wu_service.start_wu_api_sesion()
+
+            _retrieved_observations = self._wu_service.get_hourly_observations_for_date(datetime.now().date())
+
+            if len(_retrieved_observations) == 0:
+                self._wm_error_service.handle_error("Weather Underground is not logging observations today",
+                                                    "Warning", send_email=True)
+
+            self._wu_service.stop_wu_api_session()
+
+        except WuApiException as ex:
+
+            self._wm_error_service.handle_error(ex, "Critical", send_email=True, terminate=True)
 
     # Repeatedly call the Weather Underground API to obtain recent observations
     def _retrieve_recent_observations(self, most_recent_observation_date: date, fetch_up_to_date: date):
@@ -106,19 +128,26 @@ class MainRoutine:
 
         _date_counter: date = most_recent_observation_date + timedelta(days=1)
 
-        self._wu_service.start_wu_api_sesion()
+        try:
 
-        while _date_counter <= fetch_up_to_date:
+            self._wu_service.start_wu_api_sesion()
 
-            _retrieved_observation = self._wu_service.get_hourly_observations_for_date(_date_counter)
+            while _date_counter <= fetch_up_to_date:
 
-            if _retrieved_observation is not None:
-                _observation_list.append(_retrieved_observation)
-                logging.warning(f"No data for {_date_counter} retrieved from Weather Underground")
-                # e-mail user about this ***************
+                _retrieved_observations = self._wu_service.get_hourly_observations_for_date(_date_counter)
 
-            _date_counter = _date_counter + timedelta(days=1)
+                if _retrieved_observations is not None:
+                    _observation_list.append(_retrieved_observations)
+                    self._wm_error_service.handle_error(f"No data for {_date_counter} retrieved "
+                                                        f"from Weather Underground",
+                                                        "Warning")
 
-        self._wu_service.stop_wu_api_session()
+                _date_counter = _date_counter + timedelta(days=1)
+
+            self._wu_service.stop_wu_api_session()
+
+        except WuApiException as ex:
+
+            self._wm_error_service.handle_error(ex, "Critical", send_email=True, terminate=True)
 
         return _observation_list

@@ -1,6 +1,4 @@
-import logging
-import sys
-
+import IWMErrorService
 import sqlalchemy.orm
 from datetime import date
 from datetime import datetime
@@ -13,10 +11,13 @@ from sqlalchemy.ext.automap import automap_base
 # Service to handle all interactions with the Weather Manager database
 class WMDatabaseService(IWMDatabaseService):
     engine = None
+    _error_service = None
     base = automap_base()
     observations = None
 
-    def __init__(self, url, port, username, password, dbname):
+    def __init__(self, url, port, username, password, dbname, error_service: IWMErrorService):
+
+        self._error_service = error_service
 
         try:
 
@@ -28,13 +29,13 @@ class WMDatabaseService(IWMDatabaseService):
 
         except sqlalchemy.exc.TimeoutError:
 
-            logging.error(f"Timeout connecting to database {url}:{port}/{dbname}")
-            sys.exit()
+            self._error_service.handle_error(f"Timeout connecting to database {url}:{port}/{dbname}",
+                                             "Error", send_email=True, terminate=True)
 
         except sqlalchemy.exc.DBAPIError as ex:
 
-            logging.error(f"Database access error: {ex}")
-            sys.exit()
+            self._error_service.handle_error(f"Database access error: {ex}",
+                                             "Error", send_email=True, terminate=True)
 
     def dispose(self):
         self.engine.dispose()
@@ -58,8 +59,8 @@ class WMDatabaseService(IWMDatabaseService):
 
         except sqlalchemy.exc.DBAPIError as ex:
 
-            logging.error(f"Database access error while getting most recent observation date: {ex}")
-            sys.exit()
+            self._error_service.handle_error(f"Database access error while getting most recent observation date: {ex}",
+                                             "Error", send_email=True, terminate=True)
 
     # Saves observations to the database. Observations are provided as a list of hourly
     # observations for a multiple of days. These need to be reformatted before writing.
@@ -81,18 +82,20 @@ class WMDatabaseService(IWMDatabaseService):
                     _hourly_observation_counter += 1
 
                 if _hourly_observation_counter == 24:
-                    logging.info(f"Observations recorded for {_date_of_observations}")
+                    self._error_service.handle_error(f"Observations recorded for {_date_of_observations}",
+                                                     "Info")
                 else:
-                    logging.warning(f"Only {_hourly_observation_counter} "
-                                    f"observations were recorded for {_date_of_observations}")
+                    self._error_service.handle_error(f"Only {_hourly_observation_counter} "
+                                                     f"observations were recorded for {_date_of_observations}",
+                                                     "Warning", send_email=True)
 
             session.commit()
             session.close()
 
         except sqlalchemy.exc.DBAPIError as ex:
 
-            logging.error(f"Database access error while saving list of observations: {ex}")
-            sys.exit()
+            self._error_service.handle_error(f"Database access error while saving list of observations: {ex}",
+                                             "Error", send_email=True, terminate=True, exc_info=ex)
 
     # Creates and returns a single SQLAlchemy observation object from an hourly observation
     # that was returned from Weather Underground.

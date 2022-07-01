@@ -1,9 +1,9 @@
 import configparser
-from WMEmailService import WMEmailService
+from WMErrorService import WMErrorService
 from unittest import TestCase
 
 
-class TestWMEmailService(TestCase):
+class TestWMErrorService(TestCase):
     config = configparser.ConfigParser()
 
     def setUp(self):
@@ -11,7 +11,7 @@ class TestWMEmailService(TestCase):
 
     def test_send_email(self):
 
-        _wm_email_service = WMEmailService(self.config.get('EMail', 'Host'),
+        _wm_email_service = WMErrorService(self.config.get('EMail', 'Host'),
                                            self.config.get('EMail', 'Port'),
                                            self.config.get('EMail', 'Username'),
                                            self.config.get('EMail', 'Password'),

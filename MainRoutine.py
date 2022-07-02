@@ -1,20 +1,17 @@
 # Main logic for importing Weather Underground PWS data and adding it to the Weather Manager database.
 # Will import all observations not yet downloaded up until yesterday's date.
 
-import configparser
 import IDateTimeProvider
 import IWMDatabaseService
 import IWMErrorService
 import IWeatherUndergroundApiService
 import logging
-import os
 import sys
+import WuApiException
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from os.path import exists
-
-import WuApiException
 
 
 def _configure_logging(log_file_full_name: str):
@@ -24,22 +21,25 @@ def _configure_logging(log_file_full_name: str):
         logging.basicConfig(filename=log_file_full_name, format=_log_format)
     else:
         logging.basicConfig(filename="WMDownloader.log", format=_log_format)
-        logging.warning(f"Couldn't file the supplied log file {log_file_full_name}")
+        logging.warning(f"Couldn't find the supplied log file {log_file_full_name}")
 
 
 class MainRoutine:
-    _config = configparser.ConfigParser()
+    _api_throttling_limit = None
     _database_service = None
     _date_time_provider = None
+    _initial_observation_date = None
     _wm_error_service = None
     _wu_api_service: IWeatherUndergroundApiService = None
 
     def __init__(self,
                  wm_database_service: IWMDatabaseService,
                  date_time_provider: IDateTimeProvider,
-                 _wu_api_service: IWeatherUndergroundApiService,
-                 _wm_error_service: IWMErrorService,
-                 log_file_full_name):
+                 wu_api_service: IWeatherUndergroundApiService,
+                 wm_error_service: IWMErrorService,
+                 api_throttling_limit: str,
+                 initial_observation_date: str,
+                 log_file_full_name: str):
 
         # Setup logging
         _configure_logging(log_file_full_name)
@@ -47,26 +47,20 @@ class MainRoutine:
         # Assign function to log unhandled exceptions
         sys.excepthook = self._catch_unhandled_exceptions
 
-        # Load configuration
-        self._config.read('config.ini')
-        if self._config is None:
-            self._wm_error_service.handle_error(f"Could not read the configuration file config.ini in {os.getcwd()}",
-                                                "Error", send_email=True, terminate=True)
-
-        # Store the injected services
+        # Store the injected services and parameters
         self._database_service = wm_database_service
         self._date_time_provider = date_time_provider
-        self._wu_service = _wu_api_service
-        self._wm_error_service = _wm_error_service
+        self._wu_service = wu_api_service
+        self._wm_error_service = wm_error_service
+        self._api_throttling_limit = api_throttling_limit
+        self._initial_observation_date = initial_observation_date
 
     # The controlling method that is called to drive the download of recent observations
     def download_recent_observations(self):
 
         self._not_currently_gathering_data_warner()
 
-        _initial_observation_date = datetime.strptime(self._config.get('WeatherUnderground',
-                                                                       'InitialObservationDate'),
-                                                      '%Y-%m-%d').date()
+        _initial_observation_date = datetime.strptime(self._initial_observation_date, '%Y-%m-%d').date()
         _most_recent_observation_date: date = \
             self._database_service.get_most_recent_observation_date(_initial_observation_date)
 
@@ -84,8 +78,7 @@ class MainRoutine:
     # get downloaded on subsequent days.
     def _apply_api_throttling_limit(self, yesterdays_date: date, most_recent_observation_date: date):
 
-        _api_throttle_limit: timedelta = timedelta(days=float(self._config.get('Downloader',
-                                                                               'ApiThrottlingLimit')))
+        _api_throttle_limit: timedelta = timedelta(days=float(self._api_throttling_limit))
 
         if yesterdays_date - most_recent_observation_date > _api_throttle_limit:
             return most_recent_observation_date + _api_throttle_limit

@@ -1,15 +1,26 @@
 import configparser
 import os
 import sys
+import traceback
 import winsound
-
 from DateTimeProvider import DateTimeProvider
 from MainRoutine import MainRoutine
 from WeatherUndergroundApiService import WeatherUndergroundApiService
 from WMDatabaseService import WMDatabaseService
 from WMErrorService import WMErrorService
 
+
 # Launches the Weather Manager Downloader
+
+# Define unhandled exception handler
+def _catch_unhandled_exceptions(exception_type, value, trace_back):
+
+    trace_back_strings = traceback.format_exception(exception_type, value, trace_back)
+    error_message = "Unhandled exception:" + "\r\n".join(trace_back_strings)
+
+    error_service.handle_error(error_message, "Critical", send_email=True,
+                               terminate=True)
+
 
 # Get configuration
 _config = configparser.ConfigParser()
@@ -43,11 +54,14 @@ date_time_provider = DateTimeProvider()
 wu_underground_api_service = WeatherUndergroundApiService(_config.get("WeatherUnderground", "StationId"),
                                                           _config.get("WeatherUnderground", "ApiKey"))
 
+# Assign function to log unhandled exceptions
+sys.excepthook = _catch_unhandled_exceptions
+
 # Instance the MainRoutine injecting these services.
 
 main_routine = MainRoutine(database_service,
                            date_time_provider,
-                           WeatherUndergroundApiService,
+                           wu_underground_api_service,
                            error_service,
                            _config.get("Downloader", "ApiThrottlingLimit"),
                            _config.get("WeatherUnderground", "InitialObservationDate"),

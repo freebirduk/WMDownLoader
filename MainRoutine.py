@@ -6,8 +6,7 @@ import IWMDatabaseService
 import IWMErrorService
 import IWeatherUndergroundApiService
 import logging
-import sys
-import WuApiException
+from WuApiException import WuApiException
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -18,7 +17,7 @@ def _configure_logging(log_file_full_name: str):
     _log_format = "%(asctime)s - %(levelname)s - %(message)s"
 
     if exists(log_file_full_name):
-        logging.basicConfig(filename=log_file_full_name, format=_log_format)
+        logging.basicConfig(filename=log_file_full_name, format=_log_format, level=logging.INFO)
     else:
         logging.basicConfig(filename="WMDownloader.log", format=_log_format)
         logging.warning(f"Couldn't find the supplied log file {log_file_full_name}")
@@ -44,9 +43,6 @@ class MainRoutine:
         # Setup logging
         _configure_logging(log_file_full_name)
 
-        # Assign function to log unhandled exceptions
-        sys.excepthook = self._catch_unhandled_exceptions
-
         # Store the injected services and parameters
         self._database_service = wm_database_service
         self._date_time_provider = date_time_provider
@@ -64,7 +60,7 @@ class MainRoutine:
         _most_recent_observation_date: date = \
             self._database_service.get_most_recent_observation_date(_initial_observation_date)
 
-        _fetch_up_to_date = self._apply_api_throttling_limit(self._date_time_provider.now(self) -
+        _fetch_up_to_date = self._apply_api_throttling_limit(self._date_time_provider.now() -
                                                              timedelta(days=1),
                                                              _most_recent_observation_date)
 
@@ -72,6 +68,8 @@ class MainRoutine:
                                                                      _fetch_up_to_date)
 
         self._database_service.save_list_of_observations(_retrieved_observations)
+
+        self._wm_error_service.finalise_error_handling()
 
     # To avoid tripping the Weather Underground API throttling limit this will restrict the number of
     # recent observations downloaded to the value set in the config file. Outstanding observations will
@@ -81,18 +79,15 @@ class MainRoutine:
         _api_throttle_limit: timedelta = timedelta(days=float(self._api_throttling_limit))
 
         if yesterdays_date - most_recent_observation_date > _api_throttle_limit:
-            return most_recent_observation_date + _api_throttle_limit
+            _throttled_date = most_recent_observation_date + _api_throttle_limit
+            self._wm_error_service.handle_error(f"Downloading throttled to avoid Weather Underground API throttling. "
+                                                f"Only observations up until {_throttled_date} will be downloaded. "
+                                                f"Later observations will be downloaded on later runs",
+                                                "Info")
+            return _throttled_date
+
         else:
             return yesterdays_date
-
-    def _catch_unhandled_exceptions(self, exception_type, value, trace_back):
-        if issubclass(exception_type, KeyboardInterrupt):
-            sys.__excepthook__(exception_type, value, trace_back)
-            return
-
-        self._wm_error_service.handle_error("Critical", "Unhandled exception",
-                                            exc_info=(exception_type, value, trace_back))
-        sys.exit()
 
     # Alerts user to the fact that no data has been logged to Weather Underground today.
     # Weather station may be offline for some reason.
@@ -100,11 +95,11 @@ class MainRoutine:
 
         try:
 
-            self._wu_service.start_wu_api_sesion()
+            self._wu_service.start_wu_api_session()
 
             _retrieved_observations = self._wu_service.get_hourly_observations_for_date(datetime.now().date())
 
-            if len(_retrieved_observations) == 0:
+            if _retrieved_observations is None:
                 self._wm_error_service.handle_error("Weather Underground is not logging observations today",
                                                     "Warning", send_email=True)
 
@@ -112,7 +107,7 @@ class MainRoutine:
 
         except WuApiException as ex:
 
-            self._wm_error_service.handle_error(ex, "Critical", send_email=True, terminate=True)
+            self._wm_error_service.handle_error(str(ex), "Critical", send_email=True, terminate=True, exc_info=ex)
 
     # Repeatedly call the Weather Underground API to obtain recent observations
     def _retrieve_recent_observations(self, most_recent_observation_date: date, fetch_up_to_date: date):
@@ -123,17 +118,18 @@ class MainRoutine:
 
         try:
 
-            self._wu_service.start_wu_api_sesion()
+            self._wu_service.start_wu_api_session()
 
             while _date_counter <= fetch_up_to_date:
 
                 _retrieved_observations = self._wu_service.get_hourly_observations_for_date(_date_counter)
 
-                if _retrieved_observations is not None:
-                    _observation_list.append(_retrieved_observations)
+                if not _retrieved_observations["observations"]:
                     self._wm_error_service.handle_error(f"No data for {_date_counter} retrieved "
                                                         f"from Weather Underground",
-                                                        "Warning")
+                                                        "Warning", send_email=True, batch_message=True)
+                else:
+                    _observation_list.append(_retrieved_observations)
 
                 _date_counter = _date_counter + timedelta(days=1)
 

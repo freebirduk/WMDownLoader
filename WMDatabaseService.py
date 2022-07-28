@@ -21,8 +21,7 @@ class WMDatabaseService(IWMDatabaseService):
 
         try:
 
-            self.engine = create_engine(f"mariadb+mariadbconnector://{username}:{password}@{url}:{port}/{dbname}",
-                                        echo=True)
+            self.engine = create_engine(f"mariadb+mariadbconnector://{username}:{password}@{url}:{port}/{dbname}")
 
             self.base.prepare(self.engine, reflect=True)
             self.observations = self.base.classes.observations
@@ -75,19 +74,22 @@ class WMDatabaseService(IWMDatabaseService):
             for daily_observation in observations:
 
                 _hourly_observation_counter = 0
-                _date_of_observations = daily_observation["observations"][0]["obsTimeLocal"][0:10]
 
-                for hourly_observation in daily_observation["observations"]:
-                    session.add(self._create_formatted_observation(hourly_observation))
-                    _hourly_observation_counter += 1
+                if daily_observation["observations"]:
 
-                if _hourly_observation_counter == 24:
-                    self._error_service.handle_error(f"Observations recorded for {_date_of_observations}",
-                                                     "Info")
-                else:
-                    self._error_service.handle_error(f"Only {_hourly_observation_counter} "
-                                                     f"observations were recorded for {_date_of_observations}",
-                                                     "Warning", send_email=True)
+                    _date_of_observations = daily_observation["observations"][0]["obsTimeLocal"][0:10]
+
+                    for hourly_observation in daily_observation["observations"]:
+                        session.add(self._create_formatted_observation(hourly_observation))
+                        _hourly_observation_counter += 1
+
+                    if _hourly_observation_counter == 24:
+                        self._error_service.handle_error(f"Observations recorded for {_date_of_observations}",
+                                                         "Info")
+                    else:
+                        self._error_service.handle_error(f"Only {_hourly_observation_counter} "
+                                                         f"observations were recorded for {_date_of_observations}",
+                                                         "Warning", send_email=True, batch_message=True)
 
             session.commit()
             session.close()

@@ -31,11 +31,14 @@ class WeatherUndergroundApiService(IWeatherUndergroundApiService):
         # Make the api call and check response
         _api_response = self._api_session.get(_api_url)
 
-        if _api_response.status_code == requests.codes.ok:
-            return _api_response.json()
-        else:
-            raise WuApiException("Weather Underground API returned {} '{}'".format(_api_response.status_code,
-                                                                                   _api_response.reason))
+        match _api_response.status_code:
+            case requests.codes.ok:
+                return _api_response.json()
+            case 204:  # No content
+                return None
+            case _:
+                raise WuApiException("Weather Underground API returned {} '{}'".format(_api_response.status_code,
+                                                                                       _api_response.reason))
 
     # Prepares the Weather Underground API for querying
     def start_wu_api_session(self):

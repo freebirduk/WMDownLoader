@@ -37,6 +37,12 @@ This repository holds the function to download your WU data and store it in a da
   data already on WU and you want to avoid exceeding the WU API's throttling limit (currently about 2000 calls a day 
   I believe). The program makes one API call per day of data.
 
+### Something to note:
+WMDownloader will download observations up to and including *two days ago*. Why not up to yesterday? This is because 
+the Weather Underground API can sometimes be delayed in serving up the full set of observations for yesterday, 
+particularly if you make your request early in the day. By only downloading observations up to the day *before* 
+yesterday a more complete dataset is achieved. 
+
 ### Configuration:
 
 - Run the DatabaseInitialBuild.sql script on a MariaDb server to build the data repository. You can also use 

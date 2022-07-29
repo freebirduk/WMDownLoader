@@ -60,8 +60,10 @@ class MainRoutine:
         _most_recent_observation_date: date = \
             self._database_service.get_most_recent_observation_date(_initial_observation_date)
 
+        # We only fetch observations for up to TWO days ago, not up to yesterday. This is because the Weather
+        # Underground API is sometimes slow in providing the full set of observations for yesterday.
         _fetch_up_to_date = self._apply_api_throttling_limit(self._date_time_provider.now() -
-                                                             timedelta(days=1),
+                                                             timedelta(days=2),
                                                              _most_recent_observation_date)
 
         _retrieved_observations = self._retrieve_recent_observations(_most_recent_observation_date,

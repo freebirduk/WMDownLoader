@@ -1,3 +1,4 @@
+import argparse
 import configparser
 import os
 import sys
@@ -14,7 +15,6 @@ from WMErrorService import WMErrorService
 
 # Define unhandled exception handler
 def _catch_unhandled_exceptions(exception_type, value, trace_back):
-
     trace_back_strings = traceback.format_exception(exception_type, value, trace_back)
     error_message = "Unhandled exception:" + "\r\n".join(trace_back_strings)
 
@@ -22,9 +22,19 @@ def _catch_unhandled_exceptions(exception_type, value, trace_back):
                                terminate=True)
 
 
+# Get command line argument
+command_line_parser = argparse.ArgumentParser(description="Download observations from Weather Underground")
+command_line_parser.add_argument("ConfigFile", metavar="configfile", type=str,
+                                 help="Fully qualified name of config file")
+command_line_arguments = command_line_parser.parse_args()
+if not os.path.isfile(command_line_arguments.ConfigFile):
+    print("The supplied configuration file name does not exist")
+    sys.exit()
+
+
 # Get configuration
 _config = configparser.ConfigParser()
-_config.read('config.ini')
+_config.read(command_line_arguments.ConfigFile)
 if _config is None:
     winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
     print(f"Could not read the configuration file config.ini in {os.getcwd()}")

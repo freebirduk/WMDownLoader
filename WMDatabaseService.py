@@ -15,20 +15,21 @@ class WMDatabaseService(IWMDatabaseService):
     base = automap_base()
     observations = None
 
-    def __init__(self, url, port, username, password, dbname, error_service: IWMErrorService):
+    def __init__(self, ipaddress, dbname, error_service: IWMErrorService):
 
         self._error_service = error_service
 
         try:
 
-            self.engine = create_engine(f"mariadb+mariadbconnector://{username}:{password}@{url}:{port}/{dbname}")
+            self.engine = create_engine(f"mssql+pyodbc://{ipaddress}/{dbname}"
+                                        f"?trusted_connection=yes&driver=ODBC+Driver+17+for+SQL+Server")
 
             self.base.prepare(self.engine, reflect=True)
-            self.observations = self.base.classes.observations
+            self.observations = self.base.classes.Observations
 
         except sqlalchemy.exc.TimeoutError:
 
-            self._error_service.handle_error(f"Timeout connecting to database {url}:{port}/{dbname}",
+            self._error_service.handle_error(f"Timeout connecting to database {dbname}",
                                              "Error", send_email=True, terminate=True)
 
         except sqlalchemy.exc.DBAPIError as ex:
